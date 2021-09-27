@@ -1,4 +1,4 @@
-from .core.base import Base
+from ..core.base import Base
 from attrdict import AttrDict
 
 class Instance(Base):
@@ -32,6 +32,7 @@ class Instance(Base):
         'version': '1.0.0'
     }
     """
+    # TODO: document each property, no more dynamic shit
     def __getattr__(self, key):
         if isinstance(self._json.get(key), dict):
             return AttrDict(self._json[key])

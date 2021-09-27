@@ -10,7 +10,9 @@ class RequestHandler:
     MAX_PAGES = 99999
     BASE_URL = 'https://securex-ao.us.security.cisco.com'
     
-    def __init__(self, client_id, client_password, dry_run):
+    def __init__(self, client_id, client_password, cache, dry_run):
+        self.cache = cache
+        self.dry_run = dry_run
         self.client_id = client_id
         self.client_password = client_password
         self.headers = {
@@ -21,7 +23,6 @@ class RequestHandler:
         self.params = {
             'limit': 100
         }
-        self.dry_run = dry_run
     
     def _get(self, **kwargs):
         return self._request(method='get', **kwargs)
