@@ -3,7 +3,7 @@ from .instances import Instances
 from .core.decorators import cache
 from .core.request_handler import RequestHandler
 
-__version__ = '0.0.1'
+__version__ = '0.0.2'
 
 class SXOClient(RequestHandler):
     @property
