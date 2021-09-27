@@ -1,8 +1,7 @@
 import requests
 import base64
-from .workflows import Workflows
-from .instances import Instances
-from .core.decorators import cache
+
+from .decorators import cache
 
 URI = '/be-console/api'
 
@@ -100,15 +99,3 @@ class RequestHandler:
         )
         result.raise_for_status()
         return result.json()
-
-
-class SXO(RequestHandler):
-    @property
-    @cache('_workflows')
-    def workflows(self):
-        return Workflows(self)
-    
-    @property
-    @cache('_instances')
-    def instances(self):
-        return Instances(self)
