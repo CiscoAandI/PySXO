@@ -55,7 +55,7 @@ class Workflows(Base):
             raise Exception("Workflow ID or unique name must be provided")
         
         if workflow_id:
-            return self._sxo._get(url=f'/v1/workflows/{workflow_id}').json()
+            return self._sxo._get(url=f'/v1/workflows/{workflow_id}')
         else:
             # Search through all workflows for the unique name
             for workflow in self.all():
