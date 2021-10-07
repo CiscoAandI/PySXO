@@ -45,7 +45,7 @@ class RequestHandler:
         kwargs['headers'] = {**self.headers, **kwargs.get('headers', {})}
         kwargs['params'] = {**self.params, **kwargs.get('params', {})}
         kwargs['url'] = f'{RequestHandler.BASE_URL}{uri}{kwargs["url"]}'
-
+        LOGGER.info('Sending request')
         result = requests.request(method=method, **kwargs)
         LOGGER.info('Got response')
 
@@ -65,12 +65,15 @@ class RequestHandler:
         result.raise_for_status()
 
         if not paginated:
+            LOGGER.info("Paginated False")
+            LOGGER.debug(result.text)
+            if not 'results' in result.json():
+                return result.json()
             results = result.json().get('results', [])
             for i in range(RequestHandler.MAX_PAGES):
                 if result.json().get('_links', {}).get('next'):
-                    # TODO: logger
-                    # print(result.json().get('_links').get('next'))
-                    # print(f"Getting page: {i + 2}")
+                    LOGGER.debug(f"Result.json()._links.next:{result.json().get('_links').get('next')}")
+                    LOGGER.info(f"Getting page {i+2}")
                     kwargs.pop('url', None)
                     result = requests.request(
                         url=f"{RequestHandler.BASE_URL}{uri}{result.json()['_links']['next']}",
@@ -86,13 +89,13 @@ class RequestHandler:
             try:
                 return result.json()
             except json.decoder.JSONDecodeError:
-                # Usually indicates a bad API route or bad credentials.
                 LOGGER.error("Usually indicates a bad API route or bad credentials.")
                 return result.text
     
     @property
     @cache('_token')
     def token(self):
+        LOGGER.info("Posting for token")
         result = requests.post(
             url=f"{RequestHandler.AUTH_BASE}/oauth2/token",
             headers={
@@ -108,6 +111,7 @@ class RequestHandler:
     @property
     @cache('_jwt')
     def jwt(self):
+        LOGGER.info('Posting for JWT')
         result = requests.post(
             url=f"{RequestHandler.AUTH_BASE}/ao/gen-jwt",
             headers={
