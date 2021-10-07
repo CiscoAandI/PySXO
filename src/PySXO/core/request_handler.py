@@ -1,9 +1,13 @@
 import requests
 import base64
+import logging
+import json
 
 from .decorators import cache
 
 URI = '/be-console/api'
+LOGGER = logging.getLogger(__name__)
+LOGGER.setLevel(logging.DEBUG)
 
 class RequestHandler:
     AUTH_BASE = 'https://visibility.amp.cisco.com/iroh'
@@ -25,28 +29,41 @@ class RequestHandler:
         }
     
     def _get(self, **kwargs):
+        LOGGER.info('Invoking _get function')
         return self._request(method='get', **kwargs)
     
     def _post(self, **kwargs):
+        LOGGER.info('Invoking _post function')
         return self._request(method='post', **kwargs)
     
     def _request(self, method='get', paginated=False, uri=URI, **kwargs):
+        LOGGER.info('Invoking _request function:')
+        LOGGER.debug(f'\tMethod: {method}\n\tPaginated: {paginated}\n\tURI: {uri}\n\tKwargs:{kwargs}')
         if method != 'get' and self.dry_run:
             return {}
         # refresh jwt
         kwargs['headers'] = {**self.headers, **kwargs.get('headers', {})}
         kwargs['params'] = {**self.params, **kwargs.get('params', {})}
         kwargs['url'] = f'{RequestHandler.BASE_URL}{uri}{kwargs["url"]}'
+
         result = requests.request(method=method, **kwargs)
+        LOGGER.info('Got response')
+
         if result.status_code == 401:
-            # Reset cache
+            LOGGER.info('Resetting cache due to 401')
             self._jwt = None
             self._token = None
             self.headers['Authorization'] = f'Bearer {self.jwt}'
             kwargs['headers']['Authorization'] = self.headers['Authorization']
+            LOGGER.info('Resending the request')
+            LOGGER.debug(f'\tMethod: {method}\n\tPaginated: {paginated}\n\tURI: {uri}\n\tKwargs:{kwargs}')
+
             result = requests.request(method=method, **kwargs)
-        result.raise_for_status()
+            LOGGER.info('Got response after resend')
         
+        LOGGER.debug(f'Result:\n\t Headers:{json.dumps(dict(result.headers))}\n\tStatus_Code:{result.status_code}\n\tText:{result.text}')
+        result.raise_for_status()
+
         if not paginated:
             results = result.json().get('results', [])
             for i in range(RequestHandler.MAX_PAGES):
@@ -63,12 +80,14 @@ class RequestHandler:
                     results += result.json().get('results', [])
                 else:
                     break
+                        
             return results
         else:
             try:
                 return result.json()
             except json.decoder.JSONDecodeError:
                 # Usually indicates a bad API route or bad credentials.
+                LOGGER.error("Usually indicates a bad API route or bad credentials.")
                 return result.text
     
     @property
