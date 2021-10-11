@@ -34,21 +34,19 @@ class RequestHandler:
     
     def _post(self, **kwargs):
         LOGGER.info('Invoking _post function')
-
         return self._request(method='post', **kwargs)
 
 
-    def _request(self, method='get', paginated=False, uri=URI, **kwargs):
+    def _request(self, method='get',set_limit=True, paginated=False, uri=URI, **kwargs):
         
         if method != 'get' and self.dry_run:
             return {}
-
-        kwargs['params'] = {**self.params, **kwargs.get('params', {})}
         kwargs['headers'] = {**self.headers, **kwargs.get('headers', {})}
         kwargs['url'] = f'{RequestHandler.BASE_URL}{uri}{kwargs["url"]}'
         
         LOGGER.debug(json.dumps(dict(kwargs)))
-
+        LOGGER.info(f"Making a {method.upper()} requests to {kwargs['url']} ")
+        
         response = requests.request(method=method, **kwargs)
           
         if response.status_code == 401:
@@ -59,11 +57,15 @@ class RequestHandler:
         return response.json()
 
     def _paginated_request(self, **kwargs):
+        kwargs['params'] = {**self.params, **kwargs.get('params', {})}
+        page = 1 
         while kwargs["url"]:
             print(kwargs)
+            LOGGER.info(f"Getting page {page}")
             response = self._post(
                 **kwargs
             )
+            kwargs["params"] = {}
             kwargs["url"] = response.get('_links', False).get('next', False)
             yield response.get('results',[])
     
