@@ -1,5 +1,6 @@
 import requests
 import time
+from typing import List
 from .workflow import Workflow
 from .core.decorators import cache
 from .core.base import Base
@@ -47,18 +48,21 @@ class Workflows(Base):
         }
 
     @cache('_all')
-    def all(self, **kwargs):
-        return [Workflow(self._sxo, i) for i in self._sxo._post(url=f"/v1.1/workflows", **kwargs)]
+    def all(self, **kwargs) -> List[Workflow]:
+        results = list()
+        for page in self._sxo._paginated_request(url=f"/api/v1.1/workflows", **kwargs):
+            results += page
+        return [Workflow(self._sxo, raw=i) for i in results]
 
-    def get(self, workflow_id=None, unique_name=None):
+    def get(self, workflow_id=None, unique_name=None) -> Workflow:
         if not workflow_id and not unique_name:
             raise Exception("Workflow ID or unique name must be provided")
         
         if workflow_id:
-            return self._sxo._get(url=f'/v1/workflows/{workflow_id}')
+            return Workflow(self._sxo, raw=self._sxo._get(url=f'/api/v1/workflows/{workflow_id}')) #FIXME Use v1.1
         else:
-            # Search through all workflows for the unique name
             for workflow in self.all():
                 if workflow.unique_name == unique_name:
                     return workflow
-            # If not found, return none
+        return {}
+
