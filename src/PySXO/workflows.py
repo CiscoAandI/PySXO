@@ -1,9 +1,13 @@
-import requests
 import time
+
 from typing import List
+
 from .workflow import Workflow
 from .core.decorators import cache
 from .core.base import Base
+
+class WorkFlowNotFound(Exception):
+    pass
 
 class Workflows(Base):
     IMPORT_URI = '/be-importexport'
@@ -64,5 +68,7 @@ class Workflows(Base):
             for workflow in self.all():
                 if workflow.unique_name == unique_name:
                     return workflow
-        return {}
+        raise WorkFlowNotFound
+
+
 

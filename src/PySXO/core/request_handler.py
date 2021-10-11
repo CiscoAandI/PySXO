@@ -3,6 +3,9 @@ import base64
 import logging
 import json
 
+from requests import Response
+from typing import Dict, List, Union
+
 from .decorators import cache
 
 URI = '/be-console'
@@ -14,7 +17,7 @@ class RequestHandler:
     MAX_PAGES = 99999
     BASE_URL = 'https://securex-ao.us.security.cisco.com'
     
-    def __init__(self, client_id, client_password, cache, dry_run):
+    def __init__(self, client_id: str, client_password: str, cache, dry_run):
         self.cache = cache
         self.dry_run = dry_run
         self.client_id = client_id
@@ -28,25 +31,25 @@ class RequestHandler:
             'limit': 100
         }
     
-    def _get(self, **kwargs):
+    def _get(self, **kwargs) -> Union[List, Dict]:
         LOGGER.info('Invoking _get function')
         return self._request(method='get', **kwargs)
     
-    def _post(self, **kwargs):
+    def _post(self, **kwargs) -> Union[List, Dict]:
         LOGGER.info('Invoking _post function')
         return self._request(method='post', **kwargs)
 
-
-    def _request(self, method='get',set_limit=True, paginated=False, uri=URI, **kwargs):
+    def _request(self, method: str = 'get', uri: str = URI, **kwargs) -> Union[List, Dict]:
         
         if method != 'get' and self.dry_run:
             return {}
+
         kwargs['headers'] = {**self.headers, **kwargs.get('headers', {})}
         kwargs['url'] = f'{RequestHandler.BASE_URL}{uri}{kwargs["url"]}'
         
         LOGGER.debug(json.dumps(dict(kwargs)))
         LOGGER.info(f"Making a {method.upper()} requests to {kwargs['url']} ")
-        
+
         response = requests.request(method=method, **kwargs)
           
         if response.status_code == 401:
@@ -56,7 +59,7 @@ class RequestHandler:
 
         return response.json()
 
-    def _paginated_request(self, **kwargs):
+    def _paginated_request(self, **kwargs) -> List[Union[List, Dict]]:
         kwargs['params'] = {**self.params, **kwargs.get('params', {})}
         page = 1 
         while kwargs["url"]:
@@ -69,7 +72,7 @@ class RequestHandler:
             kwargs["url"] = response.get('_links', False).get('next', False)
             yield response.get('results',[])
     
-    def _renew_token_and_retry(self, response: requests.Request, method: str='get', **kwargs: dict):
+    def _renew_token_and_retry(self, method: str='get', **kwargs: dict) -> Response:
             self._jwt = None
             self._token = None
             self.headers['Authorization'] = f'Bearer {self.jwt}'

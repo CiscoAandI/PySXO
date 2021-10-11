@@ -1,7 +1,9 @@
-from re import L
-from .core.base import Base
-from attrdict import AttrDict
 import json
+
+from attrdict import AttrDict
+from typing import Union, Dict, List
+
+from .core.base import Base
 
 class Workflow(Base):
     def __init__(self, sxo, raw=None):
@@ -13,14 +15,14 @@ class Workflow(Base):
         return self._json.get(key)
 
     @property
-    def id(self):
+    def id(self) -> str:
         return self._json.id
 
     @property
-    def start_config(self):
+    def start_config(self) -> AttrDict[Union[Dict, List]]:
         return AttrDict(self._sxo._get(url=f'/api/v1/workflows/ui/start_config?workflow_id={self.id}'))
 
-    def start(self, **kwargs):
+    def start(self, **kwargs) -> Union[List, Dict]:
         body = {"input_variables":[]}
         for variable_id, variable_definition in self.start_config.property_schema.properties.items():
             if variable_definition["title"] in kwargs.keys():
@@ -38,8 +40,7 @@ class Workflow(Base):
                         "is_required": True
                     }
                 })
-        print("-"*100)
-        self._sxo._post(url=f"/api/v1/workflows/start?workflow_id={self.id}", json=body)
+        return self._sxo._post(url=f"/api/v1/workflows/start?workflow_id={self.id}", json=body)
 
         
         
