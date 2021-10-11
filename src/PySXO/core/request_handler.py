@@ -8,7 +8,9 @@ from typing import Dict, List, Union
 
 from .decorators import cache
 
+
 URI = '/be-console'
+
 LOGGER = logging.getLogger(__name__)
 LOGGER.setLevel(logging.DEBUG)
 
@@ -77,8 +79,8 @@ class RequestHandler:
             self._token = None
             self.headers['Authorization'] = f'Bearer {self.jwt}'
             kwargs['headers']['Authorization'] = self.headers['Authorization']
-            return requests.request(method=method, **kwargs)
 
+            return requests.request(method=method, **kwargs)
     
     @property
     @cache('_token')
