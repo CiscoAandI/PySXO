@@ -42,10 +42,15 @@ class Workflow(Base):
                 })
         return self._sxo._post(url=f"/api/v1/workflows/start?workflow_id={self.id}", json=body)
 
-        
-        
-        
+    def validate(self):
+        result = self._sxo._post(paginated=True, url=f'/v1/workflows/{self.id}/validate',)
 
+        if not self._sxo.dry_run:
+            if result['workflow_valid'] != True:
+                print(f"Workflow is still invalid, Found errors: {result}")
 
-
-        
+        return {
+            # this key indicates a need to be re-validated
+            'valid': result['workflow_valid'],
+            'result': result
+        }
