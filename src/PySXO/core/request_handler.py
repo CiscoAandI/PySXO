@@ -3,14 +3,9 @@ import base64
 import logging
 import json
 
-from requests import Response
-from typing import Dict, List, Union
-
 from .decorators import cache
 
-
-URI = '/be-console'
-
+URI = '/be-console/api'
 LOGGER = logging.getLogger(__name__)
 LOGGER.setLevel(logging.DEBUG)
 
@@ -19,7 +14,7 @@ class RequestHandler:
     MAX_PAGES = 99999
     BASE_URL = 'https://securex-ao.us.security.cisco.com'
     
-    def __init__(self, client_id: str, client_password: str, cache, dry_run):
+    def __init__(self, client_id, client_password, cache, dry_run):
         self.cache = cache
         self.dry_run = dry_run
         self.client_id = client_id
@@ -33,54 +28,73 @@ class RequestHandler:
             'limit': 100
         }
     
-    def _get(self, **kwargs) -> Union[List, Dict]:
+    def _get(self, **kwargs):
         LOGGER.info('Invoking _get function')
         return self._request(method='get', **kwargs)
     
-    def _post(self, **kwargs) -> Union[List, Dict]:
+    def _post(self, **kwargs):
         LOGGER.info('Invoking _post function')
         return self._request(method='post', **kwargs)
-
-    def _request(self, method: str = 'get', uri: str = URI, **kwargs) -> Union[List, Dict]:
-        
+    
+    def _request(self, method='get', paginated=False, uri=URI, **kwargs):
+        LOGGER.info('Invoking _request function:')
         if method != 'get' and self.dry_run:
+            LOGGER.info(f"Dry run detected for non-get request, doing nothing.")
             return {}
-
+        LOGGER.debug(f'\tMethod: {method}\n\tPaginated: {paginated}\n\tURI: {uri}\n\tKwargs:{kwargs}')
+        # Setup request info
         kwargs['headers'] = {**self.headers, **kwargs.get('headers', {})}
+        kwargs['params'] = {**self.params, **kwargs.get('params', {})}
         kwargs['url'] = f'{RequestHandler.BASE_URL}{uri}{kwargs["url"]}'
         
-        LOGGER.debug(json.dumps(dict(kwargs)))
-        LOGGER.info(f"Making a {method.upper()} requests to {kwargs['url']} ")
+        LOGGER.info('Sending request')
+        result = requests.request(method=method, **kwargs)
+        LOGGER.info(f'Got response: {result}')
 
-        response = requests.request(method=method, **kwargs)
-          
-        if response.status_code == 401:
-            response = self._renew_token_and_retry()
-
-        response.raise_for_status()
-
-        return response.json()
-
-    def _paginated_request(self, **kwargs) -> List[Union[List, Dict]]:
-        kwargs['params'] = {**self.params, **kwargs.get('params', {})}
-        page = 1 
-        while kwargs["url"]:
-            print(kwargs)
-            LOGGER.info(f"Getting page {page}")
-            response = self._post(
-                **kwargs
-            )
-            kwargs["params"] = {}
-            kwargs["url"] = response.get('_links', False).get('next', False)
-            yield response.get('results',[])
-    
-    def _renew_token_and_retry(self, method: str='get', **kwargs: dict) -> Response:
-            self._jwt = None
-            self._token = None
+        if result.status_code == 401:
+            LOGGER.info('Resetting cache due to 401')
+            self._jwt = None     # must set to none to refresh cache
+            self._token = None   # Same here, set to none to refresh cache
             self.headers['Authorization'] = f'Bearer {self.jwt}'
             kwargs['headers']['Authorization'] = self.headers['Authorization']
 
-            return requests.request(method=method, **kwargs)
+            LOGGER.info('Resending the request')
+            LOGGER.debug(f'\tMethod: {method}\n\tPaginated: {paginated}\n\tURI: {uri}\n\tKwargs:{kwargs}')
+
+            result = requests.request(method=method, **kwargs)
+            LOGGER.info('Got response after resend')
+        
+        LOGGER.debug(f'Result:\n\t Headers:{json.dumps(dict(result.headers))}\n\tStatus_Code:{result.status_code}\n\tText:{result.text}')
+        result.raise_for_status()
+
+        if not paginated:
+            LOGGER.info("Paginated is set to False so iterating over all pages to get all data.")
+            LOGGER.debug(result.text)
+    
+            if not 'results' in result.json():
+                return result.json()
+            results = result.json().get('results', [])
+            for i in range(RequestHandler.MAX_PAGES):
+                if result.json().get('_links', {}).get('next'):
+                    LOGGER.debug(f"Result.json()._links.next:{result.json().get('_links').get('next')}")
+                    LOGGER.info(f"Getting page {i+2}")
+                    kwargs.pop('url', None)
+                    result = requests.request(
+                        url=f"{RequestHandler.BASE_URL}{uri}{result.json()['_links']['next']}",
+                        method=method,
+                        **kwargs
+                    )
+                    results += result.json().get('results', [])
+                else:
+                    break
+                        
+            return results
+        else:
+            try:
+                return result.json()
+            except json.decoder.JSONDecodeError:
+                LOGGER.error("Usually indicates a bad API route or bad credentials.")
+                return result.text
     
     @property
     @cache('_token')
