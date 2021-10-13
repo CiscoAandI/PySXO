@@ -62,9 +62,10 @@ class Workflows(Base):
 
         if workflow_id:
             # This endpoint does not support pagination yet.
-            result = Workflow(self._sxo, raw=self._sxo._get(paginated=False, url=f'/api/v1/workflows/{workflow_id}'))
+            result = Workflow(self._sxo, raw=self._sxo._get(paginated=True, url=f'/api/v1/workflows/{workflow_id}'))
             if not result:
                 raise WorkflowNotFound(f'Workflow not found with id "{workflow_id}"')
+            return result
         else:
             for workflow in self.all():
                 if workflow.unique_name == unique_name:
