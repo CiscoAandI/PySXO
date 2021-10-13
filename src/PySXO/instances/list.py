@@ -34,7 +34,7 @@ class Instances(Base):
         state = self._format_enum_list(state)
 
         return [
-            Instance(self, i) for i in self._sxo._post(url=f"/v1.1/instances", params={
+            Instance(self, i) for i in self._sxo._post(url=f"/api/v1.1/instances", params={
                 **({'date_from': date_from} if date_from else {}),
                 **({'date_to': date_to} if date_to else {}),
                 **({'state': state} if state else {})

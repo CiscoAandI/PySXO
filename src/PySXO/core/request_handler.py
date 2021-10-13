@@ -5,10 +5,9 @@ import json
 
 from .decorators import cache
 
-URI = '/be-console/api'
-LOGGER = logging.getLogger(__name__)
-LOGGER.setLevel(logging.DEBUG)
+URI = '/be-console'
 
+LOGGER = logging.getLogger(__name__)
 class RequestHandler:
     AUTH_BASE = 'https://visibility.amp.cisco.com/iroh'
     MAX_PAGES = 99999
@@ -24,9 +23,7 @@ class RequestHandler:
             "Accept": "application/json",
             'Authorization': f'Bearer {self.jwt}'
         }
-        self.params = {
-            'limit': 100
-        }
+        self.params = {'limit': 100}
     
     def _get(self, **kwargs):
         LOGGER.info('Invoking _get function')
@@ -36,7 +33,7 @@ class RequestHandler:
         LOGGER.info('Invoking _post function')
         return self._request(method='post', **kwargs)
     
-    def _request(self, method='get', paginated=False, uri=URI, **kwargs):
+    def _request(self, method: str = 'get', paginated: bool = False, uri: str = URI, **kwargs):
         LOGGER.info('Invoking _request function:')
         if method != 'get' and self.dry_run:
             LOGGER.info(f"Dry run detected for non-get request, doing nothing.")

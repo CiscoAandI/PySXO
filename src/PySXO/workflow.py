@@ -1,12 +1,17 @@
 import json
+import logging
 
 from attrdict import AttrDict
 from typing import Union, List, Dict
 
 from .core.base import Base
 
+LOGGER = logging.getLogger(__name__)
+
+
 class PropertySchema(Base):
     pass
+
 
 class StartConfig(Base):
     """
@@ -62,7 +67,7 @@ class Workflow(Base):
     def start_config(self) -> StartConfig:
         return StartConfig(
             sxo=self._sxo,
-            raw=self._sxo._get(url=f'/v1/workflows/ui/start_config?workflow_id={self.id}')
+            raw=self._sxo._get(url=f'/api/v1/workflows/ui/start_config?workflow_id={self.id}')
         )
 
     def start(self, **kwargs) -> Union[List, Dict]:
@@ -70,6 +75,7 @@ class Workflow(Base):
 
         for variable_id, variable_definition in self.start_config.property_schema.properties.items():
             if variable_definition["title"] in kwargs.keys():
+                # We have to dump content to string if it came as a dict because of SXO limitations. It can come as either string or dict
                 if isinstance(kwargs[variable_definition["title"]], dict):
                     value = json.dumps(kwargs[variable_definition["title"]])
                 else:
@@ -88,11 +94,11 @@ class Workflow(Base):
 
     def validate(self):
         # Validate is not paginated so does not need to request all pages
-        result = self._sxo._post(paginated=True, url=f'/v1/workflows/{self.id}/validate',)
+        result = self._sxo._post(paginated=True, url=f'/api/v1/workflows/{self.id}/validate',)
 
         if not self._sxo.dry_run:
             if result['workflow_valid'] != True:
-                print(f"Workflow is still invalid, Found errors: {result}")
+                LOGGER.info(f"Workflow is still invalid, Found errors: {result}")
 
         return {
             # this key indicates a need to be re-validated

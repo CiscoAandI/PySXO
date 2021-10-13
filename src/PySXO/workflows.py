@@ -1,3 +1,4 @@
+import logging
 import time
 
 from .workflow import Workflow
@@ -33,13 +34,12 @@ class Workflows(Base):
                 # Wait 120 seconds before timing out
                 if result['status']['state'] == 'import_in_progress':
                     time.sleep(1)
-                    result = self._sxo._get(paginated=True, url=f'/v1/workflows/{result["id"]}')
+                    result = self._sxo._get(paginated=True, url=f'/api/v1/workflows/{result["id"]}')
                 else:
                     break
 
             if not result['workflow_valid']:
-                # TODO: logger
-                print(result['name'], "is not valid. Caching to validate after import.")
+                LOGGER.info(result['name'], "is not valid. Caching to validate after import.")
                 valid = False
 
         return {
@@ -50,16 +50,16 @@ class Workflows(Base):
 
     @cache('_all')
     def all(self, **kwargs) -> List[Workflow]:
-        # This endpoint does not support pagination yet.
-        return [Workflow(self._sxo, raw=i) for i in self._sxo._request(url=f"/v1/workflows", **kwargs)]
+        # Do not paginate
+        return [Workflow(self._sxo, raw=i) for i in self._sxo._request(url=f"/api/v1/workflows", **kwargs)]
 
-    def get(self, workflow_id=None, unique_name=None) -> Workflow:
+    def get(self, workflow_id: str=None, unique_name: str=None) -> Workflow:
         if not workflow_id and not unique_name:
             raise Exception("Workflow ID or unique name must be provided")
 
         if workflow_id:
             # This endpoint does not support pagination yet.
-            result = Workflow(self._sxo, raw=self._sxo._get(url=f'/v1/workflows/{workflow_id}'))
+            result = Workflow(self._sxo, raw=self._sxo._get(url=f'/api/v1/workflows/{workflow_id}'))
             if not result:
                 raise WorkflowNotFound(f'Workflow not found with id "{workflow_id}"')
         else:
