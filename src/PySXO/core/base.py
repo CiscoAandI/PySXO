@@ -1,7 +1,7 @@
 import datetime
 
-from typing import List
 from enum import Enum
+from typing import List
 
 class Base():
     def __init__(self, sxo, raw=None):

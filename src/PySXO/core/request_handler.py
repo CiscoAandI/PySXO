@@ -5,9 +5,10 @@ import json
 
 from .decorators import cache
 
-URI = '/be-console/api'
+URI = '/be-console'
+
 LOGGER = logging.getLogger(__name__)
-LOGGER.setLevel(logging.DEBUG)
+
 
 class RequestHandler:
     AUTH_BASE = 'https://visibility.amp.cisco.com/iroh'
@@ -24,9 +25,7 @@ class RequestHandler:
             "Accept": "application/json",
             'Authorization': f'Bearer {self.jwt}'
         }
-        self.params = {
-            'limit': 100
-        }
+        self.params = {'limit': 100}
     
     def _get(self, **kwargs):
         LOGGER.info('Invoking _get function')
@@ -35,26 +34,29 @@ class RequestHandler:
     def _post(self, **kwargs):
         LOGGER.info('Invoking _post function')
         return self._request(method='post', **kwargs)
-    
-    def _request(self, method='get', paginated=False, uri=URI, **kwargs):
+
+    def _request(self, method: str = 'get', paginated: bool = False, uri: str = URI, **kwargs):
         LOGGER.info('Invoking _request function:')
-        LOGGER.debug(f'\tMethod: {method}\n\tPaginated: {paginated}\n\tURI: {uri}\n\tKwargs:{kwargs}')
         if method != 'get' and self.dry_run:
+            LOGGER.info(f"Dry run detected for non-get request, doing nothing.")
             return {}
-        # refresh jwt
+        LOGGER.debug(f'\tMethod: {method}\n\tPaginated: {paginated}\n\tURI: {uri}\n\tKwargs:{kwargs}')
+        # Setup request info
         kwargs['headers'] = {**self.headers, **kwargs.get('headers', {})}
         kwargs['params'] = {**self.params, **kwargs.get('params', {})}
         kwargs['url'] = f'{RequestHandler.BASE_URL}{uri}{kwargs["url"]}'
+        
         LOGGER.info('Sending request')
         result = requests.request(method=method, **kwargs)
-        LOGGER.info('Got response')
+        LOGGER.info(f'Got response: {result}')
 
         if result.status_code == 401:
             LOGGER.info('Resetting cache due to 401')
-            self._jwt = None
-            self._token = None
+            self._jwt = None     # must set to none to refresh cache
+            self._token = None   # Same here, set to none to refresh cache
             self.headers['Authorization'] = f'Bearer {self.jwt}'
             kwargs['headers']['Authorization'] = self.headers['Authorization']
+
             LOGGER.info('Resending the request')
             LOGGER.debug(f'\tMethod: {method}\n\tPaginated: {paginated}\n\tURI: {uri}\n\tKwargs:{kwargs}')
 
@@ -65,10 +67,9 @@ class RequestHandler:
         result.raise_for_status()
 
         if not paginated:
-            LOGGER.info("Paginated False")
+            LOGGER.info("Paginated is set to False so iterating over all pages to get all data.")
             LOGGER.debug(result.text)
-            if not 'results' in result.json():
-                return result.json()
+
             results = result.json().get('results', [])
             for i in range(RequestHandler.MAX_PAGES):
                 if result.json().get('_links', {}).get('next'):
