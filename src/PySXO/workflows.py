@@ -51,7 +51,10 @@ class Workflows(Base):
     @cache('_all')
     def all(self, **kwargs) -> List[Workflow]:
         # Do not paginate
-        return [Workflow(self._sxo, raw=i) for i in self._sxo._request(url=f"/api/v1/workflows", **kwargs)]
+        return [
+            Workflow(self._sxo, raw=i)
+            for i in self._sxo._request(paginated=True, url=f"/api/v1/workflows", **kwargs)
+        ]
 
     def get(self, workflow_id: str=None, unique_name: str=None) -> Workflow:
         if not workflow_id and not unique_name:
@@ -59,7 +62,7 @@ class Workflows(Base):
 
         if workflow_id:
             # This endpoint does not support pagination yet.
-            result = Workflow(self._sxo, raw=self._sxo._get(url=f'/api/v1/workflows/{workflow_id}'))
+            result = Workflow(self._sxo, raw=self._sxo._get(paginated=False, url=f'/api/v1/workflows/{workflow_id}'))
             if not result:
                 raise WorkflowNotFound(f'Workflow not found with id "{workflow_id}"')
         else:

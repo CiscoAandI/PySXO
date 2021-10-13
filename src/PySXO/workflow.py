@@ -5,12 +5,62 @@ from attrdict import AttrDict
 from typing import Union, List, Dict
 
 from .core.base import Base
+from .core.enum import PropertySection
 
 LOGGER = logging.getLogger(__name__)
 
+TYPE_MAP = {
+    bool: 'boolean',
+    str: 'string',
+    int: 'integer'
+}
+
+class WorkflowVariable(Base):
+
+    def __init__(self, sxo, _id, raw):
+        self._id = _id
+        super().__init__(sxo=sxo, raw=raw)
+
+    @property
+    def id(self):
+        return self._id
+
+    @property
+    def section(self):
+        return self._json['section']
+
+    @property
+    def title(self):
+        return self._json['title']
+
+    @property
+    def property_type(self):
+        return self._json['type']
+
+    @property
+    def default(self):
+        return self._json.get('default')
+
 
 class PropertySchema(Base):
-    pass
+    @property
+    def _properties(self):
+        return self._json['properties']
+
+    @property
+    def variables(self):
+        return [WorkflowVariable(sxo=self._sxo, _id=k, raw=v) for k, v in self._json['properties'].items()]
+
+    @property
+    def input_variables(self):
+        return [i for i in self.variables if i.section == PropertySection.INPUT_VARIABLES.value]
+    
+    @property
+    def required_variables(self):
+        return [
+            WorkflowVariable(sxo=self._sxo, _id=k, raw=v) for k, v in self._json['properties'].items()
+            if k in self._json.get('required', [])
+        ]
 
 
 class StartConfig(Base):
@@ -46,7 +96,48 @@ class StartConfig(Base):
     """
     @property
     def property_schema(self):
-        pass
+        return PropertySchema(sxo=self._sxo, raw=self._json['property_schema'])
+
+class WorkflowRunRequest(Base):
+    @property
+    def base_type(self):
+        self._json['base_type']
+
+    @property
+    def created_by(self):
+        # TODO: user object instead of string
+        self._json['created_by']
+
+    @property
+    def created_on(self):
+        # TODO: Date object instead of string
+        self._json['created_on']
+
+    @property
+    def definition_id(self):
+        self._json['definition_id']
+
+    @property
+    def id(self):
+        self._json['id']
+
+    @property
+    def schema_id(self):
+        self._json['schema_id']
+
+    @property
+    def status(self):
+        # TODO: return object instead of {"state": "created"}
+        self._json['status']
+
+    @property
+    def workflow_type(self):
+        self._json['type']
+
+    @property
+    def version(self):
+        self._json['version']
+    
 
 class Workflow(Base):
     def __getattr__(self, key):
@@ -67,30 +158,41 @@ class Workflow(Base):
     def start_config(self) -> StartConfig:
         return StartConfig(
             sxo=self._sxo,
-            raw=self._sxo._get(url=f'/api/v1/workflows/ui/start_config?workflow_id={self.id}')
+            raw=self._sxo._get(paginated=True, url=f'/api/v1/workflows/ui/start_config?workflow_id={self.id}')
         )
 
-    def start(self, **kwargs) -> Union[List, Dict]:
-        body = {"input_variables":[]}
+    def start(self, **input_variables) -> Union[List, Dict]:
+        # Input variable qwargs are human-readable by SXO so may contain spaces
+        # or other prohibitted python function-arg symbols
+        missing_required_args = []
+        for required_variable in self.start_config.property_schema.required_variables:
+            if required_variable.title not in input_variables:
+                missing_required_args.append(required_variable.title)
 
-        for variable_id, variable_definition in self.start_config.property_schema.properties.items():
-            if variable_definition["title"] in kwargs.keys():
-                # We have to dump content to string if it came as a dict because of SXO limitations. It can come as either string or dict
-                if isinstance(kwargs[variable_definition["title"]], dict):
-                    value = json.dumps(kwargs[variable_definition["title"]])
-                else:
-                    value = kwargs[variable_definition["title"]]
-                body["input_variables"].append({
-                    "id": variable_id,
+        if missing_required_args:
+            raise TypeError(
+                f"start() missing {len(missing_required_args)} required input variables: {' and '.join(missing_required_args)}"
+            )
+
+        return [WorkflowRunRequest(sxo=self._sxo, raw=i) for i in self._sxo._post(
+            paginated=True,
+            url=f"/api/v1/workflows/start?workflow_id={self.id}",
+            json={"input_variables": [{
+                    "id": i.id,
                     "properties": {
-                        "value": value,
+                        "value": input_variables[i.title],
                         "scope": "input",
-                        "name": variable_definition["title"],
-                        "type": "string",
+                        "name": i.title,
+                        "type": 'string',
+                        # TODO: hardcoding is_required as true here...is this right?
+                        # This may not be generic enough. More research required.
                         "is_required": True
                     }
-                })
-        return self._sxo._post(url=f"/api/v1/workflows/start?workflow_id={self.id}", json=body)
+                }
+                for i in self.start_config.property_schema.input_variables
+                if i.title in input_variables
+            ]}
+        )]
 
     def validate(self):
         # Validate is not paginated so does not need to request all pages

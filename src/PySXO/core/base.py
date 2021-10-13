@@ -1,6 +1,7 @@
 import datetime
 
 from enum import Enum
+from typing import List
 
 class Base():
     def __init__(self, sxo, raw=None):
@@ -11,7 +12,7 @@ class Base():
         # Bug in SXO API where it does not accept RFC 3339 syntax as it says it does.
         return date.isoformat() + "Z"
     
-    def _format_enum_list(self, enum_list: list[Enum]) -> str:
+    def _format_enum_list(self, enum_list: List[Enum]) -> str:
         # SXO api requires comma delimitted list
         return ','.join([i.value for i in enum_list])
     

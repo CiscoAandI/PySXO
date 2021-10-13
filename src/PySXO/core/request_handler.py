@@ -8,6 +8,8 @@ from .decorators import cache
 URI = '/be-console'
 
 LOGGER = logging.getLogger(__name__)
+
+
 class RequestHandler:
     AUTH_BASE = 'https://visibility.amp.cisco.com/iroh'
     MAX_PAGES = 99999
@@ -32,7 +34,7 @@ class RequestHandler:
     def _post(self, **kwargs):
         LOGGER.info('Invoking _post function')
         return self._request(method='post', **kwargs)
-    
+
     def _request(self, method: str = 'get', paginated: bool = False, uri: str = URI, **kwargs):
         LOGGER.info('Invoking _request function:')
         if method != 'get' and self.dry_run:
@@ -67,9 +69,7 @@ class RequestHandler:
         if not paginated:
             LOGGER.info("Paginated is set to False so iterating over all pages to get all data.")
             LOGGER.debug(result.text)
-    
-            if not 'results' in result.json():
-                return result.json()
+
             results = result.json().get('results', [])
             for i in range(RequestHandler.MAX_PAGES):
                 if result.json().get('_links', {}).get('next'):
