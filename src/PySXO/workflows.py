@@ -55,7 +55,7 @@ class Workflows(Base):
     def all(self, **kwargs) -> List[Workflow]:
         return [Workflow(self._sxo, raw=workflow) for workflow in [workflow for page in self._sxo._paginated_request(url=f"/api/v1.1/workflows", **kwargs) for workflow in page]]
 
-    def get(self, workflow_id=None, unique_name=None) -> Workflow:
+    def get(self, workflow_id: str=None, unique_name: str=None) -> Workflow:
         if not workflow_id and not unique_name:
             raise Exception("Workflow ID or unique name must be provided")
         
