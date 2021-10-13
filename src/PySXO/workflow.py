@@ -6,9 +6,6 @@ from typing import Union, Dict, List
 from .core.base import Base
 
 class Workflow(Base):
-    def __init__(self, sxo, raw=None):
-        super().__init__(sxo, raw=raw)
-
     def __getattr__(self, key):
         if isinstance(self._json.get(key), dict):
             return AttrDict(self._json[key])
@@ -19,6 +16,10 @@ class Workflow(Base):
         return self._json.id
 
     @property
+    def name(self) -> str:
+        return self._json.name
+
+    @property
     def start_config(self) -> AttrDict[Union[Dict, List]]:
         return AttrDict(self._sxo._get(url=f'/api/v1/workflows/ui/start_config?workflow_id={self.id}'))
 
@@ -26,6 +27,7 @@ class Workflow(Base):
         body = {"input_variables":[]}
         for variable_id, variable_definition in self.start_config.property_schema.properties.items():
             if variable_definition["title"] in kwargs.keys():
+                # We have to dump content to string because of SXO limitations.
                 if isinstance(kwargs[variable_definition["title"]], dict):
                     value = json.dumps(kwargs[variable_definition["title"]])
                 else:

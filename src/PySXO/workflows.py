@@ -53,10 +53,7 @@ class Workflows(Base):
 
     @cache('_all')
     def all(self, **kwargs) -> List[Workflow]:
-        results = list()
-        for page in self._sxo._paginated_request(url=f"/api/v1.1/workflows", **kwargs):
-            results += page
-        return [ Workflow(self._sxo, raw=i) for i in results ]
+        return [Workflow(self._sxo, raw=workflow) for workflow in [workflow for page in self._sxo._paginated_request(url=f"/api/v1.1/workflows", **kwargs) for workflow in page]]
 
     def get(self, workflow_id=None, unique_name=None) -> Workflow:
         if not workflow_id and not unique_name:

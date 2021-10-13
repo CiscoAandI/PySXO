@@ -29,9 +29,7 @@ class RequestHandler:
             "Accept": "application/json",
             'Authorization': f'Bearer {self.jwt}'
         }
-        self.params = {
-            'limit': 100
-        }
+        self.params = {'limit': 100}
     
     def _get(self, **kwargs) -> Union[List, Dict]:
         LOGGER.info('Invoking _get function')
@@ -42,46 +40,42 @@ class RequestHandler:
         return self._request(method='post', **kwargs)
 
     def _request(self, method: str = 'get', uri: str = URI, **kwargs) -> Union[List, Dict]:
-        
         if method != 'get' and self.dry_run:
             return {}
-
         kwargs['headers'] = {**self.headers, **kwargs.get('headers', {})}
         kwargs['url'] = f'{RequestHandler.BASE_URL}{uri}{kwargs["url"]}'
-        
-        LOGGER.debug(json.dumps(dict(kwargs)))
-        LOGGER.info(f"Making a {method.upper()} requests to {kwargs['url']} ")
-
+        LOGGER.debug(f"Making a {method.upper()} requests to {kwargs['url']} ")
         response = requests.request(method=method, **kwargs)
-          
+        LOGGER.debug(f"Response: {response.json()}")
         if response.status_code == 401:
             response = self._renew_token_and_retry()
-
         response.raise_for_status()
-
         return response.json()
 
     def _paginated_request(self, **kwargs) -> List[Union[List, Dict]]:
         kwargs['params'] = {**self.params, **kwargs.get('params', {})}
         page = 1 
+
         while kwargs["url"]:
-            print(kwargs)
-            LOGGER.info(f"Getting page {page}")
-            response = self._post(
-                **kwargs
-            )
+            LOGGER.debug(f"Getting page {page}")
+            response = self._post(**kwargs)
             kwargs["params"] = {}
-            kwargs["url"] = response.get('_links', False).get('next', False)
-            yield response.get('results',[])
+            kwargs["url"] = response.get('_links', {}).get('next', False)
+            if page >= RequestHandler.MAX_PAGES:
+                break
+            result = response.get('results', [])
+            if not result:
+                raise StopIteration
+            else:
+                yield result
     
     def _renew_token_and_retry(self, method: str='get', **kwargs: dict) -> Response:
             self._jwt = None
             self._token = None
             self.headers['Authorization'] = f'Bearer {self.jwt}'
             kwargs['headers']['Authorization'] = self.headers['Authorization']
-
             return requests.request(method=method, **kwargs)
-    
+
     @property
     @cache('_token')
     def token(self):
