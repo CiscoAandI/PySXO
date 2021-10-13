@@ -1,10 +1,12 @@
 import json
+import logging
 
 from attrdict import AttrDict
 from typing import Union, Dict, List
 
 from .core.base import Base
 
+LOGGER = logging.getLogger(__name__)
 class Workflow(Base):
     def __getattr__(self, key):
         if isinstance(self._json.get(key), dict):
@@ -27,7 +29,7 @@ class Workflow(Base):
         body = {"input_variables":[]}
         for variable_id, variable_definition in self.start_config.property_schema.properties.items():
             if variable_definition["title"] in kwargs.keys():
-                # We have to dump content to string because of SXO limitations.
+                # We have to dump content to string if it came as a dict because of SXO limitations. It can come as either string or dict
                 if isinstance(kwargs[variable_definition["title"]], dict):
                     value = json.dumps(kwargs[variable_definition["title"]])
                 else:
@@ -49,7 +51,7 @@ class Workflow(Base):
 
         if not self._sxo.dry_run:
             if result['workflow_valid'] != True:
-                print(f"Workflow is still invalid, Found errors: {result}")
+                LOGGER.info(f"Workflow is still invalid, Found errors: {result}")
 
         return {
             # this key indicates a need to be re-validated

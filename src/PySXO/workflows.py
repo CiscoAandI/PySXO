@@ -1,3 +1,4 @@
+import logging
 import time
 
 from typing import List
@@ -6,6 +7,7 @@ from .workflow import Workflow
 from .core.decorators import cache
 from .core.base import Base
 
+LOGGER = logging.getLogger(__name__)
 class WorkFlowNotFound(Exception):
     pass
 
@@ -41,8 +43,7 @@ class Workflows(Base):
                     break
 
             if not result['workflow_valid']:
-                # TODO: logger
-                print(result['name'], "is not valid. Caching to validate after import.")
+                LOGGER.info(result['name'], "is not valid. Caching to validate after import.")
                 valid = False
         
         return {

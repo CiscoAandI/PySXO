@@ -8,12 +8,9 @@ from typing import Dict, List, Union
 
 from .decorators import cache
 
-
 URI = '/be-console'
 
 LOGGER = logging.getLogger(__name__)
-LOGGER.setLevel(logging.DEBUG)
-
 class RequestHandler:
     AUTH_BASE = 'https://visibility.amp.cisco.com/iroh'
     MAX_PAGES = 99999
