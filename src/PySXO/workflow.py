@@ -7,7 +7,7 @@ from typing import Union, List, Dict
 from .core.base import Base
 from .core.enum import PropertySection
 
-LOGGER = logging.getLogger(__name__)
+from . import LOGGER
 
 TYPE_MAP = {
     bool: 'boolean',

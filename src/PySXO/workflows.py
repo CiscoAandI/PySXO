@@ -7,6 +7,8 @@ from .core.base import Base
 from .exceptions import WorkflowNotFound
 from typing import List
 
+from . import LOGGER
+
 class Workflows(Base):
     IMPORT_URI = '/be-importexport'
     
@@ -16,7 +18,7 @@ class Workflows(Base):
         result = self._sxo._post(
             paginated=True,
             uri=Workflows.IMPORT_URI,
-            url=f'/api/v1/workflows/import',
+            url='/api/v1/workflows/import',
             params={
                 'workflow_id': workflow_id,
                 'workflow_unique_name': workflow['workflow']['unique_name'],
@@ -70,7 +72,4 @@ class Workflows(Base):
             for workflow in self.all():
                 if workflow.unique_name == unique_name:
                     return workflow
-            raise WorkFlowNotFound(f"Workflow not found with unique_name {unique_name}")
-
-
-
+            raise WorkflowNotFound(f"Workflow not found with unique_name {unique_name}")

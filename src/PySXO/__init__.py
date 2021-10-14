@@ -1,9 +1,13 @@
+import logging
+
 from .workflows import Workflows
 from .instances.list import Instances
 from .core.decorators import cache
 from .core.request_handler import RequestHandler
 
-__version__ = '0.0.11'
+__version__ = '0.0.12'
+
+LOGGER = logging.getLogger(__name__)
 
 
 class SXOClient(RequestHandler):
