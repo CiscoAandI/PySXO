@@ -1,4 +1,7 @@
 # PySXO
+
+Note: This SDK is beta and is supported at best-effort. Please raise issues as you find them. Pull requests are more than welcome.
+
 A Python SDK for SecureX Orchestrator (SXO)
 
 ## Quickstart
