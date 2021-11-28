@@ -95,7 +95,7 @@ class StartConfig(Base):
     """
     @property
     def property_schema(self):
-        return PropertySchema(sxo=self._sxo, raw=self._json.get('property_schema', {'properties': []}))
+        return PropertySchema(sxo=self._sxo, raw=self._json.get('property_schema', {'properties': {}}))
 
 class WorkflowRunRequest(Base):
     @property
