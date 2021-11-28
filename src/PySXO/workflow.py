@@ -141,11 +141,11 @@ class WorkflowRunRequest(Base):
 class Workflow(Base):
     @property
     def id(self) -> str:
-        return self._json.id
+        return self._json['id']
 
     @property
     def name(self) -> str:
-        return self._json.name
+        return self._json['name']
 
     @property
     def start_config(self) -> StartConfig:
