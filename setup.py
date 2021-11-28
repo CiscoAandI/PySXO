@@ -4,7 +4,6 @@ from setuptools import setup
 setup(
     name="PySXO",
     install_requires=[
-        "requests >= 2.19.0",
-        "attrdict >= 2.0.1"
+        "requests >= 2.19.0"
     ]
 )
