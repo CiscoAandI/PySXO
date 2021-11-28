@@ -1,7 +1,6 @@
 import json
 import logging
 
-from attrdict import AttrDict
 from typing import Union, List, Dict
 
 from .core.base import Base
@@ -140,12 +139,6 @@ class WorkflowRunRequest(Base):
     
 
 class Workflow(Base):
-    def __getattr__(self, key):
-        # TODO: delete this function so there's no magic. All explicitly defined
-        if isinstance(self._json.get(key), dict):
-            return AttrDict(self._json[key])
-        return self._json.get(key)
-
     @property
     def id(self) -> str:
         return self._json.id
