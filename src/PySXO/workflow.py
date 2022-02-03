@@ -148,6 +148,10 @@ class Workflow(Base):
         return self._json['name']
 
     @property
+    def unique_name(self) -> str:
+        return self._json['unique_name']
+
+    @property
     def start_config(self) -> StartConfig:
         return StartConfig(
             sxo=self._sxo,
