@@ -183,7 +183,7 @@ class Workflow(Base):
                         "type": 'string',
                         # TODO: hardcoding is_required as true here...is this right?
                         # This may not be generic enough. More research required.
-                        "is_required": True if variable_id in self.start_config.property_schema.required else False
+                        "is_required": True if i.id in self.start_config.property_schema.required else False
                     }
                 }
                 for i in self.start_config.property_schema.input_variables
