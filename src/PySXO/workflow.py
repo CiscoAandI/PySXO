@@ -40,6 +40,11 @@ class WorkflowVariable(Base):
     def default(self):
         return self._json.get('default')
 
+    def __repr__(self):
+        return f"Workflow variable, id: {self.id}"
+
+
+
 
 class PropertySchema(Base):
     @property
@@ -60,7 +65,6 @@ class PropertySchema(Base):
             WorkflowVariable(sxo=self._sxo, _id=k, raw=v) for k, v in self._json['properties'].items()
             if k in self._json.get('required', [])
         ]
-
 
 class StartConfig(Base):
     """
@@ -162,33 +166,38 @@ class Workflow(Base):
         # Input variable qwargs are human-readable by SXO so may contain spaces
         # or other prohibitted python function-arg symbols
         missing_required_args = []
-        for required_variable in self.start_config.property_schema.required_variables:
+        required_variables = self.start_config.property_schema.required_variables
+        LOGGER.debug(f"Required variables: {required_variables}")
+        for required_variable in required_variables:
             if required_variable.title not in input_variables:
                 missing_required_args.append(required_variable.title)
 
         if missing_required_args:
+            LOGGER.error(f"Missing required variables: {missing_required_args} ")
             raise TypeError(
                 f"start() missing {len(missing_required_args)} required input variables: {' and '.join(missing_required_args)}"
             )
-
+        payload = {
+            "input_variables": [
+                {
+                    "id": i.id,
+                    "properties": {
+                    "value": input_variables[i.title],
+                    "scope": "input",
+                    "name": i.title,
+                    "type": 'string',
+                    "is_required": i.id in [variable.id for variable in required_variables]
+                    }
+                }
+                    for i in self.start_config.property_schema.input_variables
+                    if i.title in input_variables
+            ]
+        }
+        LOGGER.debug(f"Start workflow payload: {payload}")
         return [WorkflowRunRequest(sxo=self._sxo, raw=i) for i in self._sxo._post(
             paginated=True,
             url=f"/api/v1/workflows/start?workflow_id={self.id}",
-            json={"input_variables": [{
-                    "id": i.id,
-                    "properties": {
-                        "value": input_variables[i.title],
-                        "scope": "input",
-                        "name": i.title,
-                        "type": 'string',
-                        # TODO: hardcoding is_required as true here...is this right?
-                        # This may not be generic enough. More research required.
-                        "is_required": True if i.id in self.start_config.property_schema.required else False
-                    }
-                }
-                for i in self.start_config.property_schema.input_variables
-                if i.title in input_variables
-            ]}
+            json=payload,
         )]
 
     def validate(self):
