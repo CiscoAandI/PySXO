@@ -16,90 +16,80 @@ TYPE_MAP = {
 
 class WorkflowVariable(Base):
 
-    def __init__(self, sxo, _id, raw):
-        self._id = _id
+    def __init__(self, sxo, raw):
         super().__init__(sxo=sxo, raw=raw)
 
     @property
     def id(self):
-        return self._id
+        return self._json['id']
 
     @property
-    def section(self):
-        return self._json['section']
+    def scope(self):
+        return self._json['properties']["scope"]
 
     @property
-    def title(self):
-        return self._json['title']
+    def name(self):
+        return self._json['properties']["name"]
 
     @property
     def property_type(self):
-        return self._json['type']
+        return self._json['properties']["type"]
 
     @property
     def default(self):
-        return self._json.get('default')
+        return self._json['properties']["value"]
+
+    @property
+    def is_required(self):
+        return self._json['properties']["is_required"]
 
     def __repr__(self):
         return f"Workflow variable, id: {self.id}"
 
 
-
-
 class PropertySchema(Base):
-    @property
-    def _properties(self):
-        return self._json['properties']
-
-    @property
-    def variables(self):
-        return [WorkflowVariable(sxo=self._sxo, _id=k, raw=v) for k, v in self._json['properties'].items()]
 
     @property
     def input_variables(self):
-        return [i for i in self.variables if i.section == PropertySection.INPUT_VARIABLES.value]
-    
+        return [WorkflowVariable(sxo=self._sxo, raw=v) for v in self._json]
+
     @property
     def required_variables(self):
-        return [
-            WorkflowVariable(sxo=self._sxo, _id=k, raw=v) for k, v in self._json['properties'].items()
-            if k in self._json.get('required', [])
-        ]
+        return [i for i in self.input_variables if i.is_required]
+
 
 class StartConfig(Base):
     """
     {
-        'property_schema': {
-            'properties': {
-                '01RMCD5WPLVMF6wDYqO5XPdcBAczCK8MNMP': {
-                    'section': 'Input Variables',
-                    'title': 'Identity Group Name',
-                    'type': 'string'
-                },
-                'target_id': {
-                    'addNewOption': True,
-                    'component': 'select',
-                    'filterBy': {
-                        'schema_id': '01JYJ0OOD9O7P2lkhNF1LsJrTonSOcI3AXu'
-                    },
-                    'optionsDynamicRef': {
-                        'endpoint': 'targets'
-                    },
-                    'position': 1,
-                    'section': 'Target',
-                    'title': 'Target'
-                }
+    "input_variables": [
+        {
+            "id": "01SZK637QK7SU60M21u7jJzggcPDtUNjIG0",
+            "schema_id": "01JYJ0PDP6GDE68JLuGA8NkJ1pyMUa65Hkw",
+            "properties": {
+                "value": "",
+                "scope": "input",
+                "name": "alert_input",
+                "type": "datatype.string",
+                "description": "input for alert event",
+                "is_required": true,
+                "is_invisible": false
             },
-            'required': ['01RMCD5WPLVMF6wDYqO5XPdcBAczCK8MNMP', 'target_id']
+            "created_on": "2021-11-22T18:27:18.047Z",
+            "created_by": "user@cisco.com",
+            "updated_on": "2021-11-22T18:27:18.047Z",
+            "updated_by": "user@cisco.com",
+            "owner": "user@cisco.com",
+            "base_type": "datatype",
+            "unique_name": "variable_workflow_01SZK6381G3LE72ivN2M3RDl5x3YsgAd9rE"
         },
-        'view_config': {
-            'section_order': ['Target', 'Account Keys', 'Input Variables', 'Start Point']
-        }
-    }
+    ]
+}
     """
+
     @property
     def property_schema(self):
-        return PropertySchema(sxo=self._sxo, raw=self._json.get('property_schema', {'properties': {}}))
+        return PropertySchema(sxo=self._sxo, raw=self._json.get('input_variables', []))
+
 
 class WorkflowRunRequest(Base):
     @property
@@ -140,7 +130,7 @@ class WorkflowRunRequest(Base):
     @property
     def version(self):
         self._json['version']
-    
+
 
 class Workflow(Base):
     @property
@@ -159,18 +149,20 @@ class Workflow(Base):
     def start_config(self) -> StartConfig:
         return StartConfig(
             sxo=self._sxo,
-            raw=self._sxo._get(paginated=True, url=f'/api/v1/workflows/ui/start_config?workflow_id={self.id}')
+            raw=self._sxo._get(paginated=True, url=f'/api/v1/workflows/start_config?workflow_id={self.id}')
         )
 
     def start(self, **input_variables) -> Union[List, Dict]:
         # Input variable qwargs are human-readable by SXO so may contain spaces
         # or other prohibitted python function-arg symbols
         missing_required_args = []
+        input_variables_definitions = self.start_config.property_schema.input_variables
         required_variables = self.start_config.property_schema.required_variables
+        LOGGER.debug(f"Input variables definitions: {input_variables_definitions}")
         LOGGER.debug(f"Required variables: {required_variables}")
         for required_variable in required_variables:
-            if required_variable.title not in input_variables:
-                missing_required_args.append(required_variable.title)
+            if required_variable.name not in input_variables:
+                missing_required_args.append(required_variable.name)
 
         if missing_required_args:
             LOGGER.error(f"Missing required variables: {missing_required_args} ")
@@ -182,15 +174,15 @@ class Workflow(Base):
                 {
                     "id": i.id,
                     "properties": {
-                    "value": input_variables[i.title],
-                    "scope": "input",
-                    "name": i.title,
-                    "type": 'string',
-                    "is_required": i.id in [variable.id for variable in required_variables]
+                        "value": input_variables[i.name],
+                        "scope": "input",
+                        "name": i.name,
+                        "type": 'string',
+                        "is_required": i.is_required
                     }
                 }
-                    for i in self.start_config.property_schema.input_variables
-                    if i.title in input_variables
+                for i in input_variables_definitions
+                if i.name in input_variables
             ]
         }
         LOGGER.debug(f"Start workflow payload: {payload}")
